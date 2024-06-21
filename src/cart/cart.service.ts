@@ -150,7 +150,7 @@ export class CartService {
         data: {
           subtotal,
           totalPrice,
-        },
+        },  //
       });
   
       return updatedCartItem;
