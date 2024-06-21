@@ -9,3 +9,11 @@ export class UpdateCartDto {
     quantity: number;
 }
   
+
+export class CreateOrderDto {
+  userId: number;
+}
+
+export class UpdateOrderStatusDto {
+  status: string;
+}
