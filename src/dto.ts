@@ -1,24 +1,51 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty } from 'class-validator';
+
 export class AddToCartDto {
-    userId: number;
-    productId: number;
-    quantity: number;
-  }
+  @ApiProperty()
+  @IsInt()
+  userId: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsNotEmpty()
+  productId: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsNotEmpty()
+  quantity: number;
+}
 
 export class UpdateCartDto {
-    cartItemId: number;
-    quantity: number;
+  @ApiProperty()
+  @IsInt()
+  cartItemId: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsNotEmpty()
+  quantity: number;
 }
-  
 
 export class CreateOrderDto {
+  @ApiProperty()
+  @IsInt()
   userId: number;
 }
 
 export class UpdateOrderStatusDto {
+  @ApiProperty()
+  @IsNotEmpty()
   status: string;
 }
 
-export class ApplyCouponDto{
+export class ApplyCouponDto {
+  @ApiProperty()
+  @IsInt()
   userId: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
   coupon: string;
 }
