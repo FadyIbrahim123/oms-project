@@ -1,0 +1,87 @@
+// Prisma schema file (schema.prisma)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User model
+model User {
+  userId    Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String   // Note: Passwords should be hashed in a real application
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Define opposite relation fields
+  orders    Order[]  @relation("UserOrders")
+  carts     Cart[]   @relation("UserCarts")
+}
+
+// Product model (assuming it exists similarly to before)
+model Product {
+  productId   Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  stock       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cartItems   CartItem[] // Define the opposite relation field
+
+}
+
+// Order model
+model Order {
+  orderId   Int       @id @default(autoincrement())
+  orderDate DateTime  @default(now())
+  status    String    // Example: 'pending', 'completed', 'shipped', etc.
+  userId    Int       // Foreign key referencing User
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Define opposite relation field to User
+  user      User      @relation("UserOrders", fields: [userId], references: [userId])
+}
+
+// Cart model
+model Cart {
+  cartId               Int       @id @default(autoincrement())
+  userId               Int       // Foreign key referencing User
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  subtotal             Float     @default(0)
+  totalPrice           Float     @default(0)
+  promoCodeMultiplier  Float     @default(1)
+
+  // Define opposite relation field to User
+  user      User      @relation("UserCarts", fields: [userId], references: [userId])
+
+  // Assuming there's a relation to CartItem as well
+  cartItems CartItem[]
+}
+
+
+// CartItem model (assuming it exists similarly to before)
+model CartItem {
+  cartItemId Int     @id @default(autoincrement())
+  cartId     Int
+  productId  Int
+  quantity   Int
+  price      Float
+  totalPrice Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Define relations
+  cart       Cart      @relation(fields: [cartId], references: [cartId])
+  product    Product   @relation(fields: [productId], references: [productId])
+}
