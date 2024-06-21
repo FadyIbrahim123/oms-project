@@ -26,9 +26,12 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+
+
 ## Installation
 
 ```bash
+$ git clone https://github.com/FadyIbrahim123/oms-project.git
 $ npm install
 ```
 
