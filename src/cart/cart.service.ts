@@ -35,7 +35,7 @@ export class CartService {
 
       if (!cart) {
         cart = await prisma.cart.create({
-          data: { userId: data.userId },
+          data: { userId: data.userId, subtotal: 0 },
           include: { cartItems: true },
         });
       }
@@ -72,13 +72,11 @@ export class CartService {
       });
 
       const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const totalPrice = subtotal * (cart.promoCodeMultiplier);
 
       cart = await prisma.cart.update({
         where: { cartId: cart.cartId },
         data: {
           subtotal,
-          totalPrice,
         },
         include: { cartItems: true },
       });
@@ -93,9 +91,6 @@ export class CartService {
     try {
       const userIdAsNumber = Number(userId);
 
-      if (isNaN(userIdAsNumber)) {
-        throw new Error(`Invalid userId: ${userId}`);
-      }
 
       const cart = await prisma.cart.findFirst({
         where: { userId: userIdAsNumber },
@@ -142,14 +137,12 @@ export class CartService {
   
       // Calculate subtotal
       const subtotal = cart.cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const totalPrice = subtotal * cart.promoCodeMultiplier;
   
       // Update cart with new subtotal and totalPrice
       await prisma.cart.update({
         where: { cartId: cart.cartId },
         data: {
           subtotal,
-          totalPrice,
         },  //
       });
   
@@ -183,14 +176,12 @@ export class CartService {
   
       // Calculate subtotal
       const subtotal = cart.cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const totalPrice = subtotal * cart.promoCodeMultiplier;
   
       // Update cart with new subtotal and totalPrice
       await prisma.cart.update({
         where: { cartId: cart.cartId },
         data: {
           subtotal,
-          totalPrice,
         },
       });
     } catch (error) {

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient, Order } from '@prisma/client';
-import { CreateOrderDto, UpdateOrderStatusDto } from '../dto';
+import { ApplyCouponDto, CreateOrderDto, UpdateOrderStatusDto } from '../dto';
 
 const prisma = new PrismaClient();
 
@@ -8,6 +8,15 @@ const prisma = new PrismaClient();
 export class OrdersService {
   async createOrder(data: CreateOrderDto): Promise<Order> {
     try {
+
+      const user = await prisma.user.findFirst({
+        where: { userId: data.userId },
+      });
+
+      if(!user){
+        throw new Error(`No user with ID ${data.userId}`);
+      }
+
       const cart = await prisma.cart.findFirst({
         where: { userId: data.userId },
         include: { cartItems: true },
@@ -21,6 +30,9 @@ export class OrdersService {
         data: {
           userId: data.userId,
           status: 'Pending',
+          price: cart.subtotal,
+          discountMultiplier: user.discountMultiplier,
+          finalPrice: cart.subtotal * user.discountMultiplier
         },
       });
 
@@ -30,9 +42,13 @@ export class OrdersService {
 
       await prisma.cart.update({
         where: { cartId: cart.cartId },
-        data: { subtotal: 0, totalPrice: 0, promoCodeMultiplier: 1 },
+        data: { subtotal: 0},
       });
 
+      await prisma.user.update({
+        where: { userId: data.userId },
+        data: { discountMultiplier: 1},
+      });
       return order;
     } catch (error) {
       throw new Error(`Failed to create order: ${error.message}`);
@@ -75,5 +91,33 @@ export class OrdersService {
     } catch (error) {
       throw new Error(`Failed to update order status: ${error.message}`);
     }
+  }
+
+  async applyCoupon(data:ApplyCouponDto){
+    try{
+    const user = await prisma.user.findFirst({
+      where: { userId: data.userId },
+    });
+
+    if(!user){
+      throw new Error(`No user with ID ${data.userId}`);
+    }
+    const CouponCode = await prisma.couponCodes.findFirst({
+      where: {code: data.coupon}
+    })
+    if(!CouponCode){
+      throw new Error(`This is an invalid coupon code: ${data.coupon}`);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { userId: data.userId },
+      data: { discountMultiplier: CouponCode.discountMultiplier },
+    });
+
+    return updatedUser;
+  } catch (error) {
+    throw new Error(`Failed to apply Coupon Code: ${error.message}`);
+  }
+
   }
 }

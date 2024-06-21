@@ -7,9 +7,10 @@ import { OrdersController } from './orders/orders.controller';
 import { CartController } from './cart/cart.controller';
 import { CartService } from './cart/cart.service';
 import { OrdersService } from './orders/orders.service';
+import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [CartModule, OrdersModule],
+  imports: [CartModule, OrdersModule, UsersModule],
   controllers: [AppController, OrdersController, CartController],
   providers: [AppService, OrdersService, CartService],
 })

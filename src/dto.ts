@@ -17,3 +17,8 @@ export class CreateOrderDto {
 export class UpdateOrderStatusDto {
   status: string;
 }
+
+export class ApplyCouponDto{
+  userId: number;
+  coupon: string;
+}
