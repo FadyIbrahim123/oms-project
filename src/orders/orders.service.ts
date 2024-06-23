@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaClient, Order } from '@prisma/client';
 import { ApplyCouponDto, CreateOrderDto, UpdateOrderStatusDto } from '../dto';
 
@@ -8,13 +8,12 @@ const prisma = new PrismaClient();
 export class OrdersService {
   async createOrder(data: CreateOrderDto): Promise<Order> {
     try {
-
       const user = await prisma.user.findFirst({
         where: { userId: data.userId },
       });
 
-      if(!user){
-        throw new Error(`No user with ID ${data.userId}`);
+      if (!user) {
+        throw new NotFoundException(`No user with ID ${data.userId}`);
       }
 
       const cart = await prisma.cart.findFirst({
@@ -23,7 +22,7 @@ export class OrdersService {
       });
 
       if (!cart || cart.cartItems.length === 0) {
-        throw new Error(`Cart is empty for user with ID ${data.userId}`);
+        throw new BadRequestException(`Cart is empty for user with ID ${data.userId}`);
       }
 
       const order = await prisma.order.create({
@@ -42,16 +41,19 @@ export class OrdersService {
 
       await prisma.cart.update({
         where: { cartId: cart.cartId },
-        data: { subtotal: 0},
+        data: { subtotal: 0 },
       });
 
       await prisma.user.update({
         where: { userId: data.userId },
-        data: { discountMultiplier: 1},
+        data: { discountMultiplier: 1 },
       });
       return order;
     } catch (error) {
-      throw new Error(`Failed to create order: ${error.message}`);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to create order: ${error.message}`);
     }
   }
 
@@ -68,7 +70,10 @@ export class OrdersService {
 
       return order;
     } catch (error) {
-      throw new Error(`Failed to fetch order: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to fetch order: ${error.message}`);
     }
   }
 
@@ -89,35 +94,42 @@ export class OrdersService {
 
       return updatedOrder;
     } catch (error) {
-      throw new Error(`Failed to update order status: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to update order status: ${error.message}`);
     }
   }
 
-  async applyCoupon(data:ApplyCouponDto){
-    try{
-    const user = await prisma.user.findFirst({
-      where: { userId: data.userId },
-    });
+  async applyCoupon(data: ApplyCouponDto) {
+    try {
+      const user = await prisma.user.findFirst({
+        where: { userId: data.userId },
+      });
 
-    if(!user){
-      throw new Error(`No user with ID ${data.userId}`);
+      if (!user) {
+        throw new NotFoundException(`No user with ID ${data.userId}`);
+      }
+
+      const CouponCode = await prisma.couponCodes.findFirst({
+        where: { code: data.coupon }
+      });
+
+      if (!CouponCode) {
+        throw new BadRequestException(`This is an invalid coupon code: ${data.coupon}`);
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { userId: data.userId },
+        data: { discountMultiplier: CouponCode.discountMultiplier },
+      });
+
+      return updatedUser;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to apply Coupon Code: ${error.message}`);
     }
-    const CouponCode = await prisma.couponCodes.findFirst({
-      where: {code: data.coupon}
-    })
-    if(!CouponCode){
-      throw new Error(`This is an invalid coupon code: ${data.coupon}`);
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { userId: data.userId },
-      data: { discountMultiplier: CouponCode.discountMultiplier },
-    });
-
-    return updatedUser;
-  } catch (error) {
-    throw new Error(`Failed to apply Coupon Code: ${error.message}`);
-  }
-
   }
 }

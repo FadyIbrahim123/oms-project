@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaClient, Cart, CartItem } from '@prisma/client';
 import { AddToCartDto, UpdateCartDto } from '../dto';
 
@@ -10,7 +10,6 @@ export class CartService {
 
   async addToCart(data: AddToCartDto): Promise<Cart> {
     try {
-      // Fetch product details including price
       const product = await prisma.product.findUnique({
         where: { productId: data.productId },
       });
@@ -19,7 +18,6 @@ export class CartService {
         throw new NotFoundException(`Product with ID ${data.productId} not found`);
       }
 
-      // Check if the user exists
       const userExists = await prisma.user.findUnique({
         where: { userId: data.userId },
       });
@@ -53,7 +51,7 @@ export class CartService {
             cartId: cart.cartId,
             productId: data.productId,
             quantity: data.quantity,
-            price: product.price, // Use product price retrieved above
+            price: product.price,
             totalPrice: data.quantity * product.price,
           },
         });
@@ -62,7 +60,7 @@ export class CartService {
           where: { cartItemId: cartItem.cartItemId },
           data: {
             quantity: cartItem.quantity + data.quantity,
-            totalPrice: (cartItem.quantity + data.quantity) * product.price, // Update totalPrice based on product price
+            totalPrice: (cartItem.quantity + data.quantity) * product.price,
           },
         });
       }
@@ -75,22 +73,19 @@ export class CartService {
 
       cart = await prisma.cart.update({
         where: { cartId: cart.cartId },
-        data: {
-          subtotal,
-        },
+        data: { subtotal },
         include: { cartItems: true },
       });
 
       return cart;
     } catch (error) {
-      throw new Error(`Failed to add to cart: ${error.message}`);
+      throw new InternalServerErrorException(`Failed to add to cart: ${error.message}`);
     }
   }
 
   async viewCart(userId: number): Promise<Cart & { cartItems: CartItem[] }> {
     try {
       const userIdAsNumber = Number(userId);
-
 
       const cart = await prisma.cart.findFirst({
         where: { userId: userIdAsNumber },
@@ -103,7 +98,7 @@ export class CartService {
 
       return cart;
     } catch (error) {
-      throw new Error(`Failed to fetch cart: ${error.message}`);
+      throw new InternalServerErrorException(`Failed to fetch cart: ${error.message}`);
     }
   }
 
@@ -112,11 +107,11 @@ export class CartService {
       const currentCartItem = await prisma.cartItem.findUnique({
         where: { cartItemId: data.cartItemId },
       });
-  
+
       if (!currentCartItem) {
         throw new NotFoundException(`CartItem with ID ${data.cartItemId} not found`);
       }
-  
+
       const updatedCartItem = await prisma.cartItem.update({
         where: { cartItemId: data.cartItemId },
         data: {
@@ -124,69 +119,64 @@ export class CartService {
           totalPrice: data.quantity * currentCartItem.price,
         },
       });
-  
-      // Fetch the parent cart to recalculate prices
+
       const cart = await prisma.cart.findFirst({
         where: { cartId: currentCartItem.cartId },
         include: { cartItems: true },
       });
-  
+
       if (!cart) {
-        throw new Error(`Cart with ID ${currentCartItem.cartId} not found`);
+        throw new NotFoundException(`Cart with ID ${currentCartItem.cartId} not found`);
       }
-  
-      // Calculate subtotal
+
       const subtotal = cart.cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  
-      // Update cart with new subtotal and totalPrice
+
       await prisma.cart.update({
         where: { cartId: cart.cartId },
-        data: {
-          subtotal,
-        },  //
+        data: { subtotal },
       });
-  
+
       return updatedCartItem;
     } catch (error) {
-      throw new Error(`Failed to update cart item: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to update cart item: ${error.message}`);
     }
   }
-  
 
   async removeFromCart(cartItemId: number): Promise<void> {
     try {
       const cartItemIdAsNumber = Number(cartItemId);
-  
+
       const deletedCartItem = await prisma.cartItem.delete({
         where: { cartItemId: cartItemIdAsNumber },
       });
-  
+
       if (!deletedCartItem) {
-        throw new Error(`CartItem with ID ${cartItemId} not found`);
+        throw new NotFoundException(`CartItem with ID ${cartItemId} not found`);
       }
-  
+
       const cart = await prisma.cart.findFirst({
         where: { cartId: deletedCartItem.cartId },
         include: { cartItems: true },
       });
-  
+
       if (!cart) {
-        throw new Error(`Cart with ID ${deletedCartItem.cartId} not found`);
+        throw new NotFoundException(`Cart with ID ${deletedCartItem.cartId} not found`);
       }
-  
-      // Calculate subtotal
+
       const subtotal = cart.cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  
-      // Update cart with new subtotal and totalPrice
+
       await prisma.cart.update({
         where: { cartId: cart.cartId },
-        data: {
-          subtotal,
-        },
+        data: { subtotal },
       });
     } catch (error) {
-      throw new Error(`Failed to remove from cart: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Failed to remove from cart: ${error.message}`);
     }
   }
-  
 }
